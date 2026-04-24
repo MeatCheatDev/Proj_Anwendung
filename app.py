@@ -7,10 +7,11 @@ import shap  # type: ignore[import-untyped]
 import streamlit as st
 from pathlib import Path
 
-from src.counterfactual import run_app_counterfactual
+from src.counterfactual import format_counterfactual_for_display, run_app_counterfactual
 from src.services.risk_service import evaluate_uq, prepare_patient_data
 from src.shap_analysis import run_app_shap
 from src.uq_variance import calculate_uq
+from src.mapping import CP_MAP, SEX_MAP
 
 FEATURE_COLUMNS: list[str] = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'thalach', 'exang']
 
@@ -45,12 +46,9 @@ st.divider()
 col1, col2 = st.columns(2)
 with col1:
     age: int = st.slider("Alter", 18, 100, 50)
-    sex_input: str | None = st.selectbox("Geschlecht", ["Männlich", "Weiblich"])
-    cp_input: str | None = st.selectbox("Brustschmerzen", [
-        "Typische Angina (Schwer)", "Atypische Angina", "Nicht-anginöser Schmerz", "Keine Beschwerden"
-    ])
+    sex_input: str | None = st.selectbox("Geschlecht", list(SEX_MAP.values()))
+    cp_input: str | None = st.selectbox("Brustschmerzen", list(CP_MAP.values()))
     trestbps: int | float | None = st.number_input("Blutdruck", 90, 200, 120)
-
 with col2:
     chol: int | float | None = st.number_input("Cholesterin", 100, 400, 200)
     thalach: int = st.slider("Max. Herzfrequenz", 60, 220, 150)
@@ -104,8 +102,11 @@ if st.button("Risiko auswerten 🚀", type="primary", use_container_width=True):
 
         with st.spinner("Berechne Lebensstil-Änderungen..."):
             cf_df: pd.DataFrame = run_app_counterfactual(model, x_train, y_train, user_df)
-            st.dataframe(cf_df)
-
+            st.dataframe(
+                format_counterfactual_for_display(cf_df),
+                hide_index=True,  # versteckt die 0er-Indexspalte links
+                use_container_width=True,
+            )
     with res_col2:
         st.subheader("🔍 Warum ist das so? (SHAP)")
 

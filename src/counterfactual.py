@@ -3,6 +3,42 @@ from typing import Any
 import dice_ml  # type: ignore[import-untyped]
 import pandas as pd
 
+from src.mapping import CP_MAP, SEX_MAP, FBS_MAP, EXANG_MAP
+
+_COLUMN_LABELS: dict[str, str] = {
+    "age":      "Alter",
+    "sex":      "Geschlecht",
+    "cp":       "Brustschmerzen",
+    "trestbps": "Ruheblutdruck (mmHg)",
+    "chol":     "Cholesterin (mg/dl)",
+    "fbs":      "Nüchternzucker erhöht",
+    "thalach":  "Max. Herzfrequenz",
+    "exang":    "Belastungsangina",
+    "target":   "Diagnose",
+}
+
+_TARGET_MAP: dict[int, str] = {1: "Krank", 0: "Gesund"}
+
+
+def format_counterfactual_for_display(df: pd.DataFrame) -> pd.DataFrame:
+    """Formatiert den DiCE-DataFrame für die Anzeige im UI (lesbare Labels, keine 0/1)."""
+    display_df = df.copy()
+
+    col_map = {
+        "sex":    SEX_MAP,
+        "cp":     CP_MAP,
+        "fbs":    FBS_MAP,
+        "exang":  EXANG_MAP,
+        "target": _TARGET_MAP,
+    }
+
+    for col, mapping in col_map.items():
+        if col in display_df.columns:
+            display_df[col] = display_df[col].apply(lambda x, m=mapping: m[int(float(x))])
+
+    display_df = display_df.rename(columns=_COLUMN_LABELS)
+    return display_df
+
 
 def run_app_counterfactual(
     model: Any,

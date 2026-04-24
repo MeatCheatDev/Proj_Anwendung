@@ -1,6 +1,8 @@
 import pandas as pd
 from dataclasses import dataclass
 
+from src.mapping import CP_MAP
+
 
 @dataclass
 class UQResult:
@@ -20,18 +22,12 @@ def prepare_patient_data(
     thalach: int,
     exang_str: str,
 ) -> pd.DataFrame:
-    """Wandelt UI-Strings in Modell-Features um."""
-    cp_dict: dict[str, int] = {
-        "Typische Angina (Schwer)": 0,
-        "Atypische Angina": 1,
-        "Nicht-anginöser Schmerz": 2,
-        "Keine Beschwerden": 3,
-    }
+    cp_reversed: dict[str, int] = {v: k for k, v in CP_MAP.items()}
 
     return pd.DataFrame({
         'age': [age],
         'sex': [1 if sex_str == "Männlich" else 0],
-        'cp': [cp_dict[cp_str]],
+        'cp':       [cp_reversed[cp_str]],
         'trestbps': [trestbps],
         'chol': [chol],
         'fbs': [1 if fbs_str == "Ja" else 0],
