@@ -61,7 +61,7 @@ def run_app_counterfactual(
     m: Any = dice_ml.Model(model=model, backend="sklearn")
     exp: Any = dice_ml.Dice(data, m, method="random")
 
-    cf: Any = exp.generate_counterfactuals(user_df, total_CFs=1, desired_class="opposite")
+    cf: Any = exp.generate_counterfactuals(user_df, total_CFs=1, desired_class=0)
 
     result_df: pd.DataFrame = cf.cf_examples_list[0].final_cfs_df
     return result_df

@@ -15,10 +15,7 @@ from src.mapping import CP_MAP, SEX_MAP
 
 FEATURE_COLUMNS: list[str] = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'thalach', 'exang']
 
-# ==========================================
-# 1. PHASE 0: BACKEND & DATEN LADEN
-# ==========================================
-
+# BACKEND & DATEN LADEN
 @st.cache_resource
 def lade_backend() -> tuple[Any, Any, pd.DataFrame, pd.Series]:  # type: ignore[type-arg]
     """Lädt Modell, SHAP-Explainer und Trainingsdaten."""
@@ -33,31 +30,148 @@ def lade_backend() -> tuple[Any, Any, pd.DataFrame, pd.Series]:  # type: ignore[
         artifact['y_train'],
     )
 
-st.set_page_config(page_title="Herzkrankheit Risiko", layout="wide")
-
 model, shap_explainer, x_train, y_train = lade_backend()
 
-# ==========================================
-# 2. UI (Die Slider)
-# ==========================================
-st.title("🫀 Echte KI-Analyse")
+
+
+# SEITENKONFIGURATION
+st.set_page_config(
+    page_title="Herzkrankheit Risiko-Analyse",
+    page_icon="🫀",
+    layout="wide"
+
+)
+
+# NAVIGATIONSBAR (interaktiver Header mit Kachel-Design)
+st.markdown("""
+<style>
+    /* Navbar Container - STICKY mit höherer Priorität */
+    .navbar-container {
+        background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%) !important;
+        padding: 18px !important;
+        border-radius: 12px !important;
+        margin-bottom: 32px !important;
+        margin-left: auto !important;      /* ← neu */
+        margin-right: auto !important;     /* ← neu */
+        box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2) !important;
+        position: sticky !important;
+        top: 20px !important;
+        width: 65% !important;
+    }
+
+    /* Navbar Inhalt */
+    .navbar-content {
+        display: flex;
+        justify-content: space-around;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    /* Navbar Links */
+    .nav-link {
+        color: white !important;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none !important;
+        font-size: 30px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .nav-link:hover {
+        background-color: rgba(255, 255, 255, 0.25);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .nav-link:active {
+        transform: translateY(0);
+    }
+
+    /* Primary Button Styling - Blau wie die Navbar */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%) !important;
+        color: white !important;
+        border: none !important;
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%) !important;
+    }
+</style>
+
+<div class="navbar-container">
+    <div class="navbar-content">
+        <a href="#informationen" class="nav-link">ℹ️ Informationen</a>
+        <a href="#risikorechner" class="nav-link">🩺 Risikorechner</a>
+        <a href="#praevention" class="nav-link">💪 Prävention</a>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+#1: EINFÜHRUNG
+st.markdown('<h2 id="informationen"></h2>', unsafe_allow_html=True)
+st.header("ℹ️ Was bringt diese Seite?")
+
+intro_col1, intro_col2 = st.columns([2, 1])
+
+with intro_col1:
+    st.markdown("""
+    Diese Anwendung nutzt künstliche Intelligenz und Datenwissenschaft, um Ihr persönliches Risiko 
+    für Herzkrankheiten zu analysieren. Basierend auf wissenschaftlichen Studien und medizinischen 
+    Parametern berechnet unser **Random Forest Machine Learning Modell** eine individuelle 
+    Risikoeinschätzung – speziell für Sie.
+
+    **Das bekommen Sie in dieser App:**
+    - 📈 Eine prozentuale Risikoeinschätzung basierend auf Ihren Vitaldaten
+    - 🎯 Aussagen zur Sicherheit und Zuverlässigkeit der Prognose (Konfidenz-Score)
+    - 🔍 Detaillierte Einsicht, welche Faktoren Ihr Risiko am meisten beeinflussen (SHAP-Analyse)
+    - 💡 Konkrete Empfehlungen zur Risikoreduktion
+
+    Nutzen Sie diese Informationen, um mit Ihrem Arzt oder Ihrer Ärztin ein gezielteres Gespräch 
+    zu führen und ggf. präventive Maßnahmen einzuleiten.
+    """)
+
+with intro_col2:
+    pass
+
+st.warning("""
+**⚠️ Wichtiger Disclaimer:** Diese App wurde zu Demonstrationszwecken erstellt. Bei Fragen zu Ihrer Herzgesundheit konsultieren Sie bitte einen Arzt. Handeln Sie nicht ohne medizinische Fachberatung.
+""")
+
+st.divider()
+
+
+
+# 2: DER RECHNER - Eingabe-Formular
+st.markdown('<h2 id="risikorechner"></h2>', unsafe_allow_html=True)
+st.title("🫀 Risikorechner – Ihre Vitaldaten")
 st.divider()
 
 col1, col2 = st.columns(2)
 with col1:
-    age: int = st.slider("Alter", 18, 100, 50)
+    age: int | float | None = st.slider("Alter", 18, 100, 50)
     sex_input: str | None = st.selectbox("Geschlecht", list(SEX_MAP.values()))
-    cp_input: str | None = st.selectbox("Brustschmerzen", list(CP_MAP.values()))
-    trestbps: int | float | None = st.number_input("Blutdruck", 90, 200, 120)
+    options = list(CP_MAP.values())
+
+    cp_input = st.selectbox(
+        "Brustschmerzen",
+        options,
+        index=len(options) - 1  # Wählt das letzte Element
+    )
+    trestbps: int | float | None = st.slider("Systolischer Ruhe-Blutdruck (Sys | mmHg)", 90, 200, 120)
 with col2:
     chol: int | float | None = st.number_input("Cholesterin", 100, 400, 200)
     thalach: int = st.slider("Max. Herzfrequenz", 60, 220, 150)
-    fbs_input: str | None = st.radio("Blutzucker > 120?", ["Nein", "Ja"])
+    fbs_input: str | None = st.radio("Nüchternblutzucker über 120 mg/dl?", ["Nein", "Ja"])
     exang_input: str | None = st.radio("Belastungsangina?", ["Nein", "Ja"])
 
-# ==========================================
 # 3. AUSWERTUNG
-# ==========================================
 if st.button("Risiko auswerten 🚀", type="primary", use_container_width=True):
     # Daten über Service aufbereiten
     user_df: pd.DataFrame = prepare_patient_data(
@@ -86,7 +200,7 @@ if st.button("Risiko auswerten 🚀", type="primary", use_container_width=True):
         uq_bewertung = evaluate_uq(echte_uq[0])
 
         st.markdown("---")
-        st.subheader("🤖 KI-Verlässlichkeit")
+        st.subheader("KI-Verlässlichkeit")
 
         getattr(st, uq_bewertung.status_color)(f"**{uq_bewertung.titel}**")
         st.caption(uq_bewertung.beschreibung)
@@ -98,18 +212,170 @@ if st.button("Risiko auswerten 🚀", type="primary", use_container_width=True):
         )
 
         st.markdown("---")
-        st.subheader("💡 Was musst du ändern? (DiCE)")
+        st.subheader("💡 Was musst du ändern?")
 
-        with st.spinner("Berechne Lebensstil-Änderungen..."):
-            cf_df: pd.DataFrame = run_app_counterfactual(model, x_train, y_train, user_df)
-            st.dataframe(
-                format_counterfactual_for_display(cf_df),
-                hide_index=True,  # versteckt die 0er-Indexspalte links
-                use_container_width=True,
+        if echtes_risiko < 0.25:
+            st.success("✅ Dein Risikoscore ist bereits sehr niedrig – alles tippi toppi! Keine Änderungen notwendig.")
+        else:
+            with st.spinner("Berechne Lebensstil-Änderungen..."):
+                cf_df: pd.DataFrame = run_app_counterfactual(model, x_train, y_train, user_df)
+                st.dataframe(
+                    format_counterfactual_for_display(cf_df),
+                    hide_index=True,
+                    use_container_width=True,
+                )
+            st.write(
+                f"<span style='font-size: 0.8em; color: gray;'>"
+                f"DiCE</span>",
+                unsafe_allow_html=True,
             )
     with res_col2:
-        st.subheader("🔍 Warum ist das so? (SHAP)")
+        st.subheader("🔍 Warum ist das so?")
 
-        fig = run_app_shap(shap_explainer, user_df)
+        with st.expander("ℹ️ Wie lese ich diesen Chart?"):
+            st.markdown("""
+            - **f(x) = 0.53** ist der Risiko-Score des Modells für diesen Patienten (0 = gesund, 1 = krank)
+            - **E[f(X)] = 0.447** ist der Durchschnittsscore über alle Trainingspatienten
+            - 🔴 **Rote Balken** treiben den Score nach oben → erhöhen das Risiko
+            - 🔵 **Blaue Balken** ziehen den Score nach unten → senken das Risiko
+            - Die Länge zeigt, wie stark der Einfluss ist
+            """)
+
+        st.write(
+            "<p style='font-size: 0.8em; color: gray;'>(SHAP)</p>",
+            unsafe_allow_html=True,
+        )
+
+        plt.style.use("dark_background")
+
+        fig, erklaerungen = run_app_shap(shap_explainer, user_df)  # Tuple entpacken
+
+        fig.patch.set_facecolor('#0e1117')
         st.pyplot(fig)
         plt.clf()
+
+        st.markdown("**Die wichtigsten Einflussfaktoren:**")
+        for satz in erklaerungen:
+            st.markdown(f"- {satz}")
+
+
+# -------------------------------------------------------------------
+# BAUSTEIN 3: PRÄVENTION - Wie man Herzprobleme vorbeugen kann
+# -------------------------------------------------------------------
+st.markdown('<h2 id="praevention"></h2>', unsafe_allow_html=True)
+st.header("💪 Herzgesundheit fördern – 4 Säulen der Prävention")
+
+st.markdown("""
+Neben der Risikoanalyse ist die Prävention essentiell. Diese vier Faktoren reduzieren Ihr 
+Risiko für Herzkrankheiten nachweislich und signifikant:
+""")
+
+# === 4 KACHELN MIT STYLING ===
+prev_col1, prev_col2, prev_col3, prev_col4 = st.columns(4, gap="medium")
+
+with prev_col1:
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+        padding: 24px;
+        border-radius: 12px;
+        border-left: 5px solid #1976D2;
+        box-shadow: 0 2px 8px rgba(25, 118, 210, 0.15);
+        min-height: 350px;
+        display: flex;
+        flex-direction: column;
+        font-family: 'Segoe UI', sans-serif;
+    ">
+        <h3 style="color: #1565C0; margin: 0 0 12px 0; font-size: 18px;">🏃 Bewegung</h3>
+        <p style="color: #333; margin: 12px 0; font-size: 14px; line-height: 1.6; flex-grow: 1;">
+            <strong>150 Minuten</strong> moderate Ausdaueraktivität pro Woche 
+            reduzieren das Herzinfarkt-Risiko um bis zu <strong>35%</strong>.
+        </p>
+        <small style="color: #666; margin-top: 12px;">
+            <em>Quelle: American Heart Association</em>
+        </small>
+    </div>
+    """, unsafe_allow_html=True)
+
+with prev_col2:
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #F3E5F5 0%, #E1BEE7 100%);
+        padding: 24px;
+        border-radius: 12px;
+        border-left: 5px solid #7B1FA2;
+        box-shadow: 0 2px 8px rgba(123, 31, 162, 0.15);
+        min-height: 350px;
+        display: flex;
+        flex-direction: column;
+        font-family: 'Segoe UI', sans-serif;
+    ">
+        <h3 style="color: #6A1B9A; margin: 0 0 12px 0; font-size: 18px;">🍎 Ernährung</h3>
+        <p style="color: #333; margin: 12px 0; font-size: 14px; line-height: 1.6; flex-grow: 1;">
+            Eine <strong>mediterrane Diät</strong> mit viel Fisch, Gemüse und 
+            ungesättigten Fetten senkt das Herzrisiko nachweislich.
+        </p>
+        <small style="color: #666; margin-top: 12px;">
+            <em>Quelle: PREDIMED-Studie (2013)</em>
+        </small>
+    </div>
+    """, unsafe_allow_html=True)
+
+with prev_col3:
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #FCE4EC 0%, #F8BBD0 100%);
+        padding: 24px;
+        border-radius: 12px;
+        border-left: 5px solid #C2185B;
+        box-shadow: 0 2px 8px rgba(194, 24, 91, 0.15);
+        min-height: 350px;
+        display: flex;
+        flex-direction: column;
+        font-family: 'Segoe UI', sans-serif;
+    ">
+        <h3 style="color: #AD1457; margin: 0 0 12px 0; font-size: 18px;">😴 Schlaf</h3>
+        <p style="color: #333; margin: 12px 0; font-size: 14px; line-height: 1.6; flex-grow: 1;">
+            <strong>7–9 Stunden</strong> Schlaf pro Nacht sind essentiell. 
+            Chronischer Schlafmangel erhöht das Infarktrisiko um <strong>48%</strong>.
+        </p>
+        <small style="color: #666; margin-top: 12px;">
+            <em>Quelle: Journal of the American College of Cardiology</em>
+        </small>
+    </div>
+    """, unsafe_allow_html=True)
+
+with prev_col4:
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+        padding: 24px;
+        border-radius: 12px;
+        border-left: 5px solid #388E3C;
+        box-shadow: 0 2px 8px rgba(56, 142, 60, 0.15);
+        min-height: 350px;
+        display: flex;
+        flex-direction: column;
+        font-family: 'Segoe UI', sans-serif;
+    ">
+        <h3 style="color: #2E7D32; margin: 0 0 12px 0; font-size: 18px;">🧘 Stressmanagement</h3>
+        <p style="color: #333; margin: 12px 0; font-size: 14px; line-height: 1.6; flex-grow: 1;">
+            Chronischer Stress verdoppelt das Herzinfarktrisiko. 
+            Meditation und <strong>Atemübungen</strong> helfen nachweislich.
+        </p>
+        <small style="color: #666; margin-top: 12px;">
+            <em>Quelle: European Heart Journal (2017)</em>
+        </small>
+    </div>
+    """, unsafe_allow_html=True)
+
+# -------------------------------------------------------------------
+# FOOTER
+# -------------------------------------------------------------------
+st.divider()
+
+st.markdown("""
+<div style="text-align: center; padding: 20px; color: #999; font-size: 12px; font-style: italic;">
+    Made by Fabian Mayer, Nico Then, Raffael Wellmann
+</div>
+""", unsafe_allow_html=True)
