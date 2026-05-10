@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 from src.mapping import CP_MAP
 
+# Ausgelagerte Businesslogik: Datenvorbereitung für das Modell und UQ-Bewertung.
+# Hält die UI-Schicht (app.py) sauber --> Keine ML-Logik im Frontend.
 
 @dataclass
 class UQResult:
@@ -37,7 +39,6 @@ def prepare_patient_data(
 
 
 def evaluate_uq(varianz: float) -> UQResult:
-    """Kapselt die Geschäftslogik für die Ampel-Bewertung."""
     if varianz < 0.16:
         return UQResult(varianz, "success", "🟢 SEHR HOCH: Die KI ist sich sehr sicher.",
                         "Die Bäume im Modell sind sich weitgehend einig...")

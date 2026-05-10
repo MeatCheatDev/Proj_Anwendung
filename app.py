@@ -1,3 +1,4 @@
+import re
 from typing import Any
 
 import joblib  # type: ignore[import-untyped]
@@ -18,7 +19,9 @@ FEATURE_COLUMNS: list[str] = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'th
 # BACKEND & DATEN LADEN
 @st.cache_resource
 def lade_backend() -> tuple[Any, Any, pd.DataFrame, pd.Series]:  # type: ignore[type-arg]
-    """Lädt Modell, SHAP-Explainer und Trainingsdaten."""
+
+    # Lädt Modell, SHAP-Explainer und Trainingsdaten.
+
     base_dir: Path = Path(__file__).resolve().parent
     model_path: Path = base_dir / 'models' / 'heart_model.joblib'
     artifact: dict[str, Any] = joblib.load(model_path)
@@ -42,7 +45,8 @@ st.set_page_config(
 
 )
 
-# NAVIGATIONSBAR (interaktiver Header mit Kachel-Design)
+# NAVIGATIONSBAR
+
 st.markdown("""
 <style>
     /* Navbar Container - STICKY mit höherer Priorität */
@@ -55,7 +59,6 @@ st.markdown("""
         margin-right: auto !important;     /* ← neu */
         box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2) !important;
         position: sticky !important;
-        top: 20px !important;
         width: 65% !important;
     }
 
@@ -148,12 +151,13 @@ st.divider()
 
 
 
-# 2: DER RECHNER - Eingabe-Formular
+# 2: RECHNER - Eingabe-Formular
 st.markdown('<h2 id="risikorechner"></h2>', unsafe_allow_html=True)
 st.title("🫀 Risikorechner – Ihre Vitaldaten")
 st.divider()
 
 col1, col2 = st.columns(2)
+
 with col1:
     age: int | float | None = st.slider("Alter", 18, 100, 50)
     sex_input: str | None = st.selectbox("Geschlecht", list(SEX_MAP.values()))
@@ -162,17 +166,19 @@ with col1:
     cp_input = st.selectbox(
         "Brustschmerzen",
         options,
-        index=len(options) - 1  # Wählt das letzte Element
+        index=len(options) - 1  # Auswahl auf das letzte Element (Keine Brustschmerzen) - Setzt default Wert.
     )
     trestbps: int | float | None = st.slider("Systolischer Ruhe-Blutdruck (Sys | mmHg)", 90, 200, 120)
+
 with col2:
-    chol: int | float | None = st.number_input("Cholesterin", 100, 400, 200)
+    chol: int | float | None = st.number_input("Cholesterin (mg/dl)", 100, 400, 200)
     thalach: int = st.slider("Max. Herzfrequenz", 60, 220, 150)
     fbs_input: str | None = st.radio("Nüchternblutzucker über 120 mg/dl?", ["Nein", "Ja"])
     exang_input: str | None = st.radio("Belastungsangina?", ["Nein", "Ja"])
 
 # 3. AUSWERTUNG
 if st.button("Risiko auswerten 🚀", type="primary", use_container_width=True):
+
     # Daten über Service aufbereiten
     user_df: pd.DataFrame = prepare_patient_data(
         age,
@@ -213,6 +219,11 @@ if st.button("Risiko auswerten 🚀", type="primary", use_container_width=True):
 
         st.markdown("---")
         st.subheader("💡 Was musst du ändern?")
+        st.write(
+            f"<span style='font-size: 0.8em; color: gray;'>"
+            f"DiCE</span>",
+            unsafe_allow_html=True,
+        )
 
         if echtes_risiko < 0.25:
             st.success("✅ Dein Risikoscore ist bereits sehr niedrig – alles tippi toppi! Keine Änderungen notwendig.")
@@ -224,44 +235,58 @@ if st.button("Risiko auswerten 🚀", type="primary", use_container_width=True):
                     hide_index=True,
                     use_container_width=True,
                 )
-            st.write(
-                f"<span style='font-size: 0.8em; color: gray;'>"
-                f"DiCE</span>",
+
+            # Erklärung für SHAP
+            with st.expander("ℹ️ Wie lese ich diese Tabelle?"):
+                st.markdown("""
+                Um die Diagnose "Gesund" zu bekommen, müssen die Werte aus der Tabelle eingegeben werden.
+                """)
+
+
+    with res_col2:
+
+        #Bug-fix, damit die Schrift nicht Schwarz wird. Leider ein Streamlit Bug:
+        plt.style.use("dark_background")
+
+        st.subheader("🔍 Warum ist das so?")
+        st.write(
+            "<p style='font-size: 0.8em; color: gray; margin-top: 1rem;'>SHAP</p>",
+            unsafe_allow_html=True,
+        )
+
+        st.markdown("### Die wichtigsten Einflussfaktoren:")
+        fig, erklaerungen = run_app_shap(shap_explainer, user_df)
+        for satz in erklaerungen:
+            satz_html = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', satz)
+            st.markdown(
+                f"<p style='font-size: 1.15rem; margin: 0.2rem 0;'>· {satz_html}</p>",
                 unsafe_allow_html=True,
             )
-    with res_col2:
-        st.subheader("🔍 Warum ist das so?")
+        st.write(
+            "</br></br>",
+            unsafe_allow_html=True,
+        )
 
+
+        # SHAP Skizze
+        plt.style.use("dark_background")
+        fig.patch.set_facecolor('#0e1117')
+        fig.set_size_inches(5, 3.5)  # Kleiner als vorher
+        st.pyplot(fig, use_container_width=False)
+        plt.clf()
+
+        # Erklärung für SHAP
         with st.expander("ℹ️ Wie lese ich diesen Chart?"):
             st.markdown("""
-            - **f(x) = 0.53** ist der Risiko-Score des Modells für diesen Patienten (0 = gesund, 1 = krank)
-            - **E[f(X)] = 0.447** ist der Durchschnittsscore über alle Trainingspatienten
+            - **f(x) = 0.XX** ist der Risiko-Score des Modells für diesen Patienten (0 = gesund, 1 = krank)
+            - **E[f(X)] = 0.XXX** ist der Durchschnittsscore über alle Trainingspatienten
             - 🔴 **Rote Balken** treiben den Score nach oben → erhöhen das Risiko
             - 🔵 **Blaue Balken** ziehen den Score nach unten → senken das Risiko
             - Die Länge zeigt, wie stark der Einfluss ist
             """)
 
-        st.write(
-            "<p style='font-size: 0.8em; color: gray;'>(SHAP)</p>",
-            unsafe_allow_html=True,
-        )
+# PRÄVENTION - Wie man Herzprobleme vorbeugen kann
 
-        plt.style.use("dark_background")
-
-        fig, erklaerungen = run_app_shap(shap_explainer, user_df)  # Tuple entpacken
-
-        fig.patch.set_facecolor('#0e1117')
-        st.pyplot(fig)
-        plt.clf()
-
-        st.markdown("**Die wichtigsten Einflussfaktoren:**")
-        for satz in erklaerungen:
-            st.markdown(f"- {satz}")
-
-
-# -------------------------------------------------------------------
-# BAUSTEIN 3: PRÄVENTION - Wie man Herzprobleme vorbeugen kann
-# -------------------------------------------------------------------
 st.markdown('<h2 id="praevention"></h2>', unsafe_allow_html=True)
 st.header("💪 Herzgesundheit fördern – 4 Säulen der Prävention")
 
@@ -270,7 +295,7 @@ Neben der Risikoanalyse ist die Prävention essentiell. Diese vier Faktoren redu
 Risiko für Herzkrankheiten nachweislich und signifikant:
 """)
 
-# === 4 KACHELN MIT STYLING ===
+
 prev_col1, prev_col2, prev_col3, prev_col4 = st.columns(4, gap="medium")
 
 with prev_col1:
@@ -369,9 +394,8 @@ with prev_col4:
     </div>
     """, unsafe_allow_html=True)
 
-# -------------------------------------------------------------------
 # FOOTER
-# -------------------------------------------------------------------
+
 st.divider()
 
 st.markdown("""

@@ -2,10 +2,9 @@ import joblib
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
 from pathlib import Path
 
-# 8 Features für die App-Nutzung
+# Features, die wir verwenden wollen. Wir wollen nicht alle aus dem UCI verwenden, nur sinnvolle.
 FEATURE_COLUMNS = ['age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'thalach', 'exang']
 
 # Pfade definieren
@@ -14,37 +13,33 @@ DATA_PATH = BASE_DIR / 'data' / 'heart-disease-UCI.csv'
 MODEL_PATH = BASE_DIR / 'models' / 'heart_model.joblib'
 
 def train_and_save_model():
-    """
-    Trainiert das Modell und speichert es dauerhaft auf der Festplatte.
-    """
-    # 1. Daten laden
+    # Daten aus CVS laden. Wir nutzen die UCI Heart Disease CSV.
     df = pd.read_csv(DATA_PATH)
     df = df.dropna(subset=FEATURE_COLUMNS + ['target'])
 
     features = df[FEATURE_COLUMNS]
     y_binary = (df['target'] > 0).astype(int)
 
-    # 2. Split
+    # Split der Daten: 20% Testset, 80% Trainingsset  --> Verhindert Overfitting
     x_train, x_test, y_train, y_test = train_test_split(
         features, y_binary, test_size=0.2, random_state=42
     )
 
-    # 3. Training
+    # Training
     print("Training startet...")
     clf = RandomForestClassifier(n_estimators=100, n_jobs=-1, random_state=42)
     clf.fit(x_train, y_train)
 
-    # 4. Ordner erstellen, falls er nicht existiert
+    # Erstellt Ordner, falls noch nicht vorhanden
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    # 5. DAS MODELL SPEICHERN
+    # Modell abspeichern. Joblib ist Speicherstandard für ML Modells wie unser Randomforest
     joblib.dump({'model': clf, 'x_train': x_train, 'y_train': y_train}, MODEL_PATH)
     print(f"Erfolg! Modell wurde gespeichert unter: {MODEL_PATH}")
 
-    # Performance-Check
-    y_pred = clf.predict(x_test)
-    print("\nModel Performance auf Testdaten:")
-    print(classification_report(y_test, y_pred))
 
+# HINWEIS: Aus Sicherheitsgründen (Vermeidung von potenzieller Schadsoftware in Serialisierungsformaten
+# wie Joblib/Pickle) wird die Modelldatei nicht mitgeliefert. Bitte führen Sie dieses Skript einmal
+# lokal aus, um das Modell frisch zu trainieren und die .joblib-Datei sicher zu erzeugen.
 if __name__ == "__main__":
     train_and_save_model()
