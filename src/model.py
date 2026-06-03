@@ -22,12 +22,12 @@ def train_and_save_model():
 
     # Split der Daten: 20% Testset, 80% Trainingsset  --> Verhindert Overfitting
     x_train, x_test, y_train, y_test = train_test_split(
-        features, y_binary, test_size=0.2, random_state=42
+        features, y_binary, test_size=0.2, random_state=1
     )
 
     # Training
     print("Training startet...")
-    clf = RandomForestClassifier(n_estimators=100, n_jobs=-1, random_state=42)
+    clf = RandomForestClassifier(n_estimators=100, n_jobs=-1, random_state=1)
     clf.fit(x_train, y_train)
 
     # Erstellt Ordner, falls noch nicht vorhanden

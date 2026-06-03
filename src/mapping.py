@@ -1,19 +1,20 @@
 #Globales Mapping File, dass nicht in jedem File neu definiert werden muss.
+from typing import Final
 
-CP_MAP: dict[int, str] = {
+CP_MAP: Final[dict[int, str]] = {
     0: "Typische Angina (Schwer)",
     1: "Atypische Angina",
     2: "Nicht-anginöser Schmerz",
     3: "Keine Beschwerden",
 }
 
-SEX_MAP: dict[int, str] = {1: "Männlich", 0: "Weiblich"}
+SEX_MAP: Final[dict[int, str]] = {1: "Männlich", 0: "Weiblich"}
 
-FBS_MAP: dict[int, str] = {1: "Ja", 0: "Nein"}
+FBS_MAP: Final[dict[int, str]] = {1: "Ja", 0: "Nein"}
 
-EXANG_MAP: dict[int, str] = {1: "Ja", 0: "Nein"}
+EXANG_MAP: Final[dict[int, str]] = {1: "Ja", 0: "Nein"}
 
-COLUMN_LABELS: dict[str, str] = {
+COLUMN_LABELS: Final[dict[str, str]] = {
     "age":      "Alter",
     "sex":      "Geschlecht",
     "cp":       "Brustschmerzen",
